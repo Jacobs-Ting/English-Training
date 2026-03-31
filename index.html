@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardware Engineer English Training</title>
+    <meta name="description" content="AI-powered English communication training for hardware engineers.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header Section -->
+        <header class="app-header">
+            <div class="logo">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h1>HW Eng English Training</h1>
+            </div>
+            <p class="subtitle">Elevate your technical communication</p>
+        </header>
+
+        <!-- Main Workspace -->
+        <main class="workspace">
+            <!-- Left Panel: Input Scenario -->
+            <section class="panel input-panel">
+                <div class="panel-header">
+                    <h2>Scenario Input</h2>
+                    <span class="badge">Configuration</span>
+                </div>
+                <div class="panel-content">
+                    <form id="scenario-form">
+                        <div class="form-group">
+                            <label for="api-key">Gemini API Key (Optional for real AI translation)</label>
+                            <input type="password" id="api-key" placeholder="AIzaSy..." style="width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.75rem 1rem; border-radius: var(--input-radius); font-size: 0.95rem; outline: none;">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="scenario-type">Communication Context (情境)</label>
+                            <div class="select-wrapper">
+                                <select id="scenario-type" required>
+                                    <option value="" disabled selected>Select a context...</option>
+                                    <option value="vendor-negotiation">Vendor Negotiation / Specifications</option>
+                                    <option value="design-review">Design Review Meeting</option>
+                                    <option value="bug-report">Bug Report / Failure Analysis</option>
+                                    <option value="cross-functional">Cross-functional Team Sync</option>
+                                    <option value="email-update">Project Status Email Update</option>
+                                    <option value="apologize-design-error">Apologize for Design Error (為設計失誤致歉並說明)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="comm-format">Communication Format (溝通形式)</label>
+                            <div class="select-wrapper">
+                                <select id="comm-format" required>
+                                    <option value="" disabled selected>Select a format...</option>
+                                    <option value="email">Email (電子郵件)</option>
+                                    <option value="technical-report">Technical Report (技術報告)</option>
+                                    <option value="internal-meeting">Internal Meeting Script/Notes (內部會議)</option>
+                                    <option value="external-meeting">External Meeting Script/Notes (外部會議)</option>
+                                    <option value="slack-message">Instant Message / Slack (即時訊息)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="key-points">Key Technical Points to Convey</label>
+                            <textarea id="key-points" rows="4" placeholder="e.g., The PCB temperature exceeds the limit by 15°C under full load. Need to discuss adding a heatsink or optimizing thermal vias..." required></textarea>
+                            <div class="word-count">0 / 500</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="tone">Desired Tone</label>
+                            <div class="radio-group">
+                                <label class="radio-label">
+                                    <input type="radio" name="tone" value="professional" checked>
+                                    <span class="radio-custom">Professional & Direct</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="tone" value="polite">
+                                    <span class="radio-custom">Polite & Diplomatic</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="tone" value="urgent">
+                                    <span class="radio-custom">Urgent & Assertive</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="tone" value="business">
+                                    <span class="radio-custom">Business Comm. (商務溝通)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="generate-btn">
+                            <span class="btn-text">Generate English Example</span>
+                            <div class="loader-spinner"></div>
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Right Panel: Output Generation -->
+            <section class="panel output-panel">
+                <div class="panel-header">
+                    <h2>Generated Workspace</h2>
+                    <div class="actions">
+                        <button class="icon-btn" id="copy-btn" title="Copy to clipboard">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M8 4V16C8 17.1046 8.89543 18 10 18H20C21.1046 18 22 17.1046 22 16V4C22 2.89543 21.1046 2 20 2H10C8.89543 2 8 2.89543 8 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M16 18V20C16 21.1046 15.1046 22 14 22H4C2.89543 22 2 21.1046 2 20V8C2 6.89543 2.89543 6 4 6H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <!-- Empty State -->
+                <div class="output-content" id="output-empty">
+                    <div class="empty-state">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M17 8L12 3L7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <p>Fill out the scenario on the left and click "Generate" to see English examples tailored for hardware engineers.</p>
+                    </div>
+                </div>
+
+                <!-- Generated Content State -->
+                <div class="output-content hidden" id="output-result">
+                    <div class="result-box">
+                        <h3 class="result-title">Subject Line / Context</h3>
+                        <p class="result-text" id="result-subject">...</p>
+                    </div>
+                    
+                    <div class="result-box main-result">
+                        <h3 class="result-title">Message / Script</h3>
+                        <div class="result-text" id="result-message">
+                            <!-- Generated text goes here -->
+                        </div>
+                    </div>
+
+                    <div class="result-box">
+                        <h3 class="result-title">Key Vocabulary & Phrases Used</h3>
+                        <ul class="vocab-list" id="result-vocab">
+                            <!-- Vocab items go here -->
+                        </ul>
+                    </div>
+
+                    <div class="result-box">
+                        <h3 class="result-title">Grammar Analysis (文法解析)</h3>
+                        <div class="result-text" id="result-grammar">
+                            <!-- Grammar analysis goes here -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
