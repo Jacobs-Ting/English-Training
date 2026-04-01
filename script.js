@@ -7,6 +7,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const wordCount = document.querySelector('.word-count');
     const generateBtn = document.querySelector('.generate-btn');
     const copyBtn = document.getElementById('copy-btn');
+    const speakBtn = document.getElementById('speak-btn');
+    const openAiKeyInput = document.getElementById('openai-key');
+    let currentAudio = null;
+    
+    // TTS Synth
+    const synth = window.speechSynthesis;
     
     const outputEmpty = document.getElementById('output-empty');
     const outputResult = document.getElementById('output-result');
@@ -150,6 +156,105 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Fetch API Error:", error);
             throw error;
         }
+    }
+
+    // Text-to-Speech
+    speakBtn.addEventListener('click', async () => {
+        if (synth.speaking) {
+            synth.cancel();
+            speakBtn.classList.remove('success');
+            return;
+        }
+
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+            currentAudio = null;
+            speakBtn.classList.remove('success');
+            return;
+        }
+
+        const textToSpeak = resultMessage.textContent;
+        if (!textToSpeak) return;
+
+        const openAiKey = openAiKeyInput ? openAiKeyInput.value.trim() : '';
+
+        if (openAiKey) {
+            try {
+                // Change color to indicate loading
+                speakBtn.style.color = 'var(--accent-color)';
+                const response = await fetch('https://api.openai.com/v1/audio/speech', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${openAiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'tts-1',
+                        input: textToSpeak,
+                        voice: 'alloy'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`OpenAI HTTP ${response.status}`);
+                }
+
+                const blob = await response.blob();
+                const audioUrl = URL.createObjectURL(blob);
+                currentAudio = new Audio(audioUrl);
+                
+                currentAudio.onplay = () => {
+                    speakBtn.style.color = '';
+                    speakBtn.classList.add('success');
+                };
+                
+                currentAudio.onended = () => {
+                    speakBtn.classList.remove('success');
+                    currentAudio = null;
+                };
+
+                currentAudio.play();
+            } catch (err) {
+                speakBtn.style.color = '';
+                alert(`OpenAI TTS Error: ${err.message}. Falling back to default browser voice.`);
+                playLocalTTS(textToSpeak);
+            }
+        } else {
+            playLocalTTS(textToSpeak);
+        }
+    });
+
+    function playLocalTTS(textToSpeak) {
+        const utterance = new SpeechSynthesisUtterance(textToSpeak);
+        utterance.lang = 'en-US';
+
+        // Attempt to find a higher quality voice (especially for Mac users)
+        const voices = synth.getVoices();
+        const preferredVoices = ['Samantha', 'Alex', 'Victoria', 'Daniel', 'Karen'];
+        let selectedVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Premium') || v.name.includes('Enhanced')));
+        
+        if (!selectedVoice) {
+            for (let name of preferredVoices) {
+                selectedVoice = voices.find(v => v.name.includes(name) && v.lang.startsWith('en'));
+                if (selectedVoice) break;
+            }
+        }
+        if (!selectedVoice) {
+            selectedVoice = voices.find(v => v.lang.startsWith('en-US'));
+        }
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+        }
+
+        utterance.onstart = () => {
+            speakBtn.classList.add('success');
+        };
+        utterance.onend = () => {
+            speakBtn.classList.remove('success');
+        };
+
+        synth.speak(utterance);
     }
 
     // Copy to clipboard

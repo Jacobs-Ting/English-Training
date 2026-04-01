@@ -36,8 +36,11 @@
                 <div class="panel-content">
                     <form id="scenario-form">
                         <div class="form-group">
-                            <label for="api-key">Gemini API Key (Optional for real AI translation)</label>
-                            <input type="password" id="api-key" placeholder="AIzaSy..." style="width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.75rem 1rem; border-radius: var(--input-radius); font-size: 0.95rem; outline: none;">
+                            <label for="api-key">Gemini API Key (Optional for real AI text)</label>
+                            <input type="password" id="api-key" placeholder="AIzaSy..." style="width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.75rem 1rem; border-radius: var(--input-radius); font-size: 0.95rem; outline: none; margin-bottom: 0.5rem;">
+                            
+                            <label for="openai-key">OpenAI API Key (Optional for ultra-realistic voice)</label>
+                            <input type="password" id="openai-key" placeholder="sk-..." style="width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.75rem 1rem; border-radius: var(--input-radius); font-size: 0.95rem; outline: none;">
                         </div>
 
                         <div class="form-group">
@@ -109,7 +112,13 @@
             <section class="panel output-panel">
                 <div class="panel-header">
                     <h2>Generated Workspace</h2>
-                    <div class="actions">
+                    <div class="actions" style="display: flex; gap: 0.5rem;">
+                        <button class="icon-btn" id="speak-btn" title="Read text aloud">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M11 5L6 9H2V15H6L11 19V5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M15.54 8.46C16.4774 9.39764 17.004 10.6692 17.004 11.995C17.004 13.3208 16.4774 14.5924 15.54 15.53" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
                         <button class="icon-btn" id="copy-btn" title="Copy to clipboard">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M8 4V16C8 17.1046 8.89543 18 10 18H20C21.1046 18 22 17.1046 22 16V4C22 2.89543 21.1046 2 20 2H10C8.89543 2 8 2.89543 8 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
