@@ -22,6 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultMessage = document.getElementById('result-message');
     const resultVocab = document.getElementById('result-vocab');
     const resultGrammar = document.getElementById('result-grammar');
+    const resultEvaluationBox = document.getElementById('result-evaluation-box');
+    const resultEvaluation = document.getElementById('result-evaluation');
 
     // Update Word Count
     keyPointsArea.addEventListener('input', (e) => {
@@ -46,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const format = formatSelect.value;
         const keyPoints = keyPointsArea.value;
         const tone = document.querySelector('input[name="tone"]:checked').value;
+        const inputLang = document.querySelector('input[name="input-lang"]:checked').value;
         const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
         
         if (!type || !format || !keyPoints) return;
@@ -61,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (apiKey) {
             // Real LLM API Call
             try {
-                const aiData = await generateEnglishEmail(keyPoints, tone, apiKey, format);
+                const aiData = await generateEnglishEmail(keyPoints, tone, apiKey, format, inputLang);
                 if (aiData) {
                     resultSubject.textContent = aiData.subject;
                     resultMessage.innerHTML = aiData.body.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -76,6 +79,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     if (aiData.grammar) {
                         resultGrammar.innerHTML = aiData.grammar.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    }
+                    if (inputLang === 'english' && aiData.evaluation) {
+                        resultEvaluationBox.classList.remove('hidden');
+                        resultEvaluation.innerHTML = aiData.evaluation.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    } else {
+                        resultEvaluationBox.classList.add('hidden');
                     }
                 } else {
                     alert('Gemini API return invalid JSON or failed parsing. Check console.');
@@ -92,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             // Simulate API call and processing time (Mock)
             setTimeout(() => {
-                generateMockContent(type, format, tone, keyPoints);
+                generateMockContent(type, format, tone, keyPoints, inputLang);
                 
                 // Enable UI
                 form.classList.remove('loading');
@@ -104,11 +113,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    async function generateEnglishEmail(keyPoints, tone, apiKey, format) {
+    async function generateEnglishEmail(keyPoints, tone, apiKey, format, inputLang) {
         // Use gemini-2.5-flash for the latest model support
         const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
         
-        const prompt = `
+        const prompt = inputLang === 'english' ? `
+            You are a highly professional Hardware Engineer.
+            The user has provided an English draft of their communication.
+            Your task is to polish and rewrite the provided English draft into a professional ${format}.
+            The format of your output should be customized for: ${format}.
+            Tone required: ${tone} (e.g., professional, polite, or urgent)
+            
+            Return ONLY a valid JSON object matching this schema precisely:
+            {
+                "subject": "The appropriate subject line, title, or heading based on context",
+                "body": "The polished and corrected English content, formatted as a ${format}. Convert the notes into neat paragraphs and bullet points using markdown ** if needed.",
+                "vocab": ["Vocab 1 (Translation)", "Vocab 2 (Translation)", "Vocab 3", "Vocab 4", "Vocab 5"],
+                "grammar": "A brief, professional grammar analysis written in Traditional Chinese (繁體中文). Explain a key professional phrasing, tense, or structure used in your rewritten version and why it is appropriate.",
+                "evaluation": "Provide encouraging, supportive coaching feedback on the user's ORIGINAL English draft in Traditional Chinese (繁體中文). Start by praising their effort and highlighting what they did well (e.g., clear technical intent). Then, gently suggest improvements covering phrasing or grammar. Keep the tone extremely positive, empathetic, and encouraging (鼓勵、同理心、陪跑教練風格)."
+            }
+            
+            User's English draft:
+            ${keyPoints}
+        ` : `
             You are a highly professional Hardware Engineer.
             Your task is to translate the following bullet points/notes into a professional English ${format}.
             The format of your output should be customized for: ${format} (e.g. if it is an email, write an email. If it is a technical report, write a formal report structure. If it is internal meeting notes, write it as meeting notes).
@@ -269,7 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    function generateMockContent(type, format, tone, keyPoints) {
+    function generateMockContent(type, format, tone, keyPoints, inputLang) {
         // Detect specific user scenario based on keywords
         const isS1Scenario = keyPoints.includes('S1XXXXX6543') || keyPoints.includes('ACLR');
         const isQualcommScenario = keyPoints.includes('QPM3981') || keyPoints.includes('load-pull');
@@ -280,6 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let processedPoints = '';
         let vocab = [];
         let grammarText = '';
+        let evaluationText = '';
 
         if (isS1Scenario) {
             subject = 'Failure Analysis Report: Sample S1XXXXX6543 5G n1 ACLR Failure';
@@ -320,6 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 .join('\n');
                 
             grammarText = '因為目前尚未填入真實的 Gemini API Key，此為離線的示範模式。\n\n若您填上實際的 API Key 並再次產生，此處將會由 AI 根據它為您寫的信件，自動用**繁體中文**生成量身打造的文法與專業句型解析！';
+            evaluationText = inputLang === 'english' ? '因為目前尚未填入真實的 Gemini API Key，此為離線的示範模式。\n\n若您填上實際的 API Key 並輸入英文，此處將會由 AI 自動為您分析剛剛輸入的「英文原稿」，給予您在文法、用字遣詞上的專業建議與評分！' : '';
         }
         
         // Adjust style based on tone
@@ -353,5 +382,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Populate Grammar
         resultGrammar.innerHTML = grammarText.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        
+        // Populate Evaluation Box
+        if (inputLang === 'english') {
+            resultEvaluationBox.classList.remove('hidden');
+            resultEvaluation.innerHTML = evaluationText.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        } else {
+            resultEvaluationBox.classList.add('hidden');
+        }
     }
 });

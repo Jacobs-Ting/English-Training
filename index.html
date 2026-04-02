@@ -44,6 +44,20 @@
                         </div>
 
                         <div class="form-group">
+                            <label>Input Language (輸入語言)</label>
+                            <div class="radio-group" id="input-language">
+                                <label class="radio-label">
+                                    <input type="radio" name="input-lang" value="chinese" checked>
+                                    <span class="radio-custom">Chinese (中文)</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="input-lang" value="english">
+                                    <span class="radio-custom">English (英文原稿)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
                             <label for="scenario-type">Communication Context (情境)</label>
                             <div class="select-wrapper">
                                 <select id="scenario-type" required>
@@ -163,7 +177,13 @@
                     <div class="result-box">
                         <h3 class="result-title">Grammar Analysis (文法解析)</h3>
                         <div class="result-text" id="result-grammar">
-                            <!-- Grammar analysis goes here -->
+                        </div>
+                    </div>
+
+                    <div class="result-box hidden" id="result-evaluation-box">
+                        <h3 class="result-title">English Evaluation (英文評語)</h3>
+                        <div class="result-text" id="result-evaluation">
+                            <!-- Evaluation goes here -->
                         </div>
                     </div>
                 </div>
