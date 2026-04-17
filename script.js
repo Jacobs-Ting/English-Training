@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyBtn = document.getElementById('copy-btn');
     const speakBtn = document.getElementById('speak-btn');
     const openAiKeyInput = document.getElementById('openai-key');
+    const formatGroup = document.getElementById('format-group');
+    const keyPointsGroup = document.getElementById('key-points-group');
     let currentAudio = null;
     
     // TTS Synth
@@ -16,14 +18,119 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const outputEmpty = document.getElementById('output-empty');
     const outputResult = document.getElementById('output-result');
-    
+
     // Result elements
     const resultSubject = document.getElementById('result-subject');
     const resultMessage = document.getElementById('result-message');
     const resultVocab = document.getElementById('result-vocab');
     const resultGrammar = document.getElementById('result-grammar');
-    const resultEvaluationBox = document.getElementById('result-evaluation-box');
-    const resultEvaluation = document.getElementById('result-evaluation');
+
+    // Chat UI elements
+    const outputChat = document.getElementById('output-chat');
+    const chatHistory = document.getElementById('chat-history');
+    const chatStatus = document.getElementById('chat-status');
+    const micBtn = document.getElementById('mic-btn');
+    const micBtnText = document.getElementById('mic-btn-text');
+    const modeInputs = document.querySelectorAll('input[name="app-mode"]');
+    const modeBadge = document.getElementById('mode-badge');
+    const generateBtnTxt = document.querySelector('.btn-text');
+
+    let currentMode = 'generator';
+    let isConversing = false;
+    let isRecording = false;
+    
+    let conversationHistory = [];
+    let systemInstructionText = "";
+    let finalTranscript = '';
+    
+    // Setup Speech Recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+        
+        recognition.onresult = (event) => {
+            let interimTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript + ' ';
+                } else {
+                    interimTranscript += event.results[i][0].transcript;
+                }
+            }
+            chatStatus.textContent = 'Listening: ' + finalTranscript + interimTranscript;
+        };
+        
+        recognition.onerror = (event) => {
+            console.error('Speech recognition error', event.error);
+            chatStatus.textContent = `Speech Error: ${event.error}. Try clicking again.`;
+            resetMicBtn();
+        };
+        
+        recognition.onend = () => {
+            if (isRecording) {
+                isRecording = false;
+                micBtn.classList.remove('active');
+                micBtnText.textContent = 'Push to Talk';
+                if (finalTranscript.trim() !== '') {
+                    handleUserVoiceInput(finalTranscript.trim());
+                    finalTranscript = '';
+                } else {
+                    chatStatus.textContent = 'Ready for your input.';
+                }
+            }
+        };
+    } else {
+        console.warn("Speech Recognition API not supported in this browser.");
+    }
+    
+    function resetMicBtn() {
+        isRecording = false;
+        micBtn.classList.remove('active');
+        micBtnText.textContent = 'Push to Talk';
+        if (chatStatus.textContent === 'Listening...') {
+             chatStatus.textContent = 'Ready for your input.';
+        }
+    }
+
+    // Mode Toggle
+    modeInputs.forEach(input => {
+        input.addEventListener('change', (e) => {
+            currentMode = e.target.value;
+            if (currentMode === 'generator') {
+                modeBadge.textContent = 'Generator Mode';
+                generateBtnTxt.textContent = 'Generate English Example';
+                outputChat.classList.add('hidden');
+                
+                if (formatGroup) formatGroup.classList.remove('hidden');
+                if (keyPointsGroup) keyPointsGroup.classList.remove('hidden');
+                formatSelect.required = true;
+                keyPointsArea.required = true;
+                
+                if (resultSubject.textContent === '...') {
+                    outputEmpty.classList.remove('hidden');
+                    outputResult.classList.add('hidden');
+                } else {
+                    outputEmpty.classList.add('hidden');
+                    outputResult.classList.remove('hidden');
+                }
+            } else {
+                modeBadge.textContent = 'Conversation Mode';
+                generateBtnTxt.textContent = 'Start Conversation Simulator';
+                outputEmpty.classList.add('hidden');
+                outputResult.classList.add('hidden');
+                outputChat.classList.remove('hidden');
+                
+                if (formatGroup) formatGroup.classList.add('hidden');
+                if (keyPointsGroup) keyPointsGroup.classList.add('hidden');
+                formatSelect.required = false;
+                keyPointsArea.required = false;
+            }
+        });
+    });
 
     // Update Word Count
     keyPointsArea.addEventListener('input', (e) => {
@@ -48,11 +155,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const format = formatSelect.value;
         const keyPoints = keyPointsArea.value;
         const tone = document.querySelector('input[name="tone"]:checked').value;
-        const inputLang = document.querySelector('input[name="input-lang"]:checked').value;
         const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
         
+        if (currentMode === 'conversation') {
+            if (!type) return;
+            startConversationSimulation(type, tone);
+            return;
+        }
+
         if (!type || !format || !keyPoints) return;
-        
+
         // Disable UI and show loading
         form.classList.add('loading');
         generateBtn.classList.add('loading');
@@ -64,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (apiKey) {
             // Real LLM API Call
             try {
-                const aiData = await generateEnglishEmail(keyPoints, tone, apiKey, format, inputLang);
+                const aiData = await generateEnglishEmail(keyPoints, tone, apiKey, format);
                 if (aiData) {
                     resultSubject.textContent = aiData.subject;
                     resultMessage.innerHTML = aiData.body.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -79,12 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     if (aiData.grammar) {
                         resultGrammar.innerHTML = aiData.grammar.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                    }
-                    if (inputLang === 'english' && aiData.evaluation) {
-                        resultEvaluationBox.classList.remove('hidden');
-                        resultEvaluation.innerHTML = aiData.evaluation.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                    } else {
-                        resultEvaluationBox.classList.add('hidden');
                     }
                 } else {
                     alert('Gemini API return invalid JSON or failed parsing. Check console.');
@@ -101,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             // Simulate API call and processing time (Mock)
             setTimeout(() => {
-                generateMockContent(type, format, tone, keyPoints, inputLang);
+                generateMockContent(type, format, tone, keyPoints);
                 
                 // Enable UI
                 form.classList.remove('loading');
@@ -113,29 +219,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    async function generateEnglishEmail(keyPoints, tone, apiKey, format, inputLang) {
+    async function generateEnglishEmail(keyPoints, tone, apiKey, format) {
         // Use gemini-2.5-flash for the latest model support
         const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
         
-        const prompt = inputLang === 'english' ? `
-            You are a highly professional Hardware Engineer.
-            The user has provided an English draft of their communication.
-            Your task is to polish and rewrite the provided English draft into a professional ${format}.
-            The format of your output should be customized for: ${format}.
-            Tone required: ${tone} (e.g., professional, polite, or urgent)
-            
-            Return ONLY a valid JSON object matching this schema precisely:
-            {
-                "subject": "The appropriate subject line, title, or heading based on context",
-                "body": "The polished and corrected English content, formatted as a ${format}. Convert the notes into neat paragraphs and bullet points using markdown ** if needed.",
-                "vocab": ["Vocab 1 (Translation)", "Vocab 2 (Translation)", "Vocab 3", "Vocab 4", "Vocab 5"],
-                "grammar": "A brief, professional grammar analysis written in Traditional Chinese (繁體中文). Explain a key professional phrasing, tense, or structure used in your rewritten version and why it is appropriate.",
-                "evaluation": "Provide encouraging, supportive coaching feedback on the user's ORIGINAL English draft in Traditional Chinese (繁體中文). Start by praising their effort and highlighting what they did well (e.g., clear technical intent). Then, gently suggest improvements covering phrasing or grammar. Keep the tone extremely positive, empathetic, and encouraging (鼓勵、同理心、陪跑教練風格)."
-            }
-            
-            User's English draft:
-            ${keyPoints}
-        ` : `
+        const prompt = `
             You are a highly professional Hardware Engineer.
             Your task is to translate the following bullet points/notes into a professional English ${format}.
             The format of your output should be customized for: ${format} (e.g. if it is an email, write an email. If it is a technical report, write a formal report structure. If it is internal meeting notes, write it as meeting notes).
@@ -296,7 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    function generateMockContent(type, format, tone, keyPoints, inputLang) {
+    function generateMockContent(type, format, tone, keyPoints) {
         // Detect specific user scenario based on keywords
         const isS1Scenario = keyPoints.includes('S1XXXXX6543') || keyPoints.includes('ACLR');
         const isQualcommScenario = keyPoints.includes('QPM3981') || keyPoints.includes('load-pull');
@@ -307,7 +395,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let processedPoints = '';
         let vocab = [];
         let grammarText = '';
-        let evaluationText = '';
 
         if (isS1Scenario) {
             subject = 'Failure Analysis Report: Sample S1XXXXX6543 5G n1 ACLR Failure';
@@ -334,7 +421,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 'bug-report': { subject: 'Failure Analysis Report: Intermittent Power Delivery Issue', vocab: ['Root cause analysis', 'Reproduction steps', 'Oscilloscope', 'Voltage ripple', 'Threshold'] },
                 'cross-functional': { subject: 'Hardware Sync: FW Integration Readiness', vocab: ['Blocker', 'Register map', 'Dependency', 'Validation', 'Bring-up'] },
                 'email-update': { subject: 'Project Status Update: EVT Hardware Drop', vocab: ['EVT', 'Yield rate', 'Milestone', 'BOM cost', 'Mitigation plan'] },
-                'apologize-design-error': { subject: 'Clarification on Recent Design Issue: Root Cause & Action Plan', vocab: ['Oversight (疏忽)', 'Root cause (根本原因)', 'Mitigation (緩解措施)', 'Board revision (改版)', 'Acknowledge (承認/認知)'] }
+                'apologize-design-error': { subject: 'Clarification on Recent Design Issue: Root Cause & Action Plan', vocab: ['Oversight (疏忽)', 'Root cause (根本原因)', 'Mitigation (緩解措施)', 'Board revision (改版)', 'Acknowledge (承認/認知)'] },
+                'rf-matching': { subject: 'RF Matching Optimization: Antenna S11 and Efficiency', vocab: ['Impedance mismatch', 'Smith chart', 'Insertion loss', 'Return loss', 'Shunt capacitor (並聯電容)'] },
+                'rf-desense': { subject: 'Desense Issue Update: EMI from High-Speed Digital Interfaces', vocab: ['Desense (靈敏度劣化)', 'Harmonics (諧波)', 'Shielding can (屏蔽罩)', 'RFI (射頻干擾)', 'Coupling (耦合)'] },
+                'rf-certification': { subject: 'Certification Blocker: 3GPP Spurious Emission Failure', vocab: ['Spurious emission (雜散發射)', 'Compliance (合規)', 'Band edge (頻帶邊緣)', 'Conducted power (傳導功率)', 'EIRP'] }
             };
 
             const responseData = mockResponses[type] || mockResponses['email-update'];
@@ -348,7 +438,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 .join('\n');
                 
             grammarText = '因為目前尚未填入真實的 Gemini API Key，此為離線的示範模式。\n\n若您填上實際的 API Key 並再次產生，此處將會由 AI 根據它為您寫的信件，自動用**繁體中文**生成量身打造的文法與專業句型解析！';
-            evaluationText = inputLang === 'english' ? '因為目前尚未填入真實的 Gemini API Key，此為離線的示範模式。\n\n若您填上實際的 API Key 並輸入英文，此處將會由 AI 自動為您分析剛剛輸入的「英文原稿」，給予您在文法、用字遣詞上的專業建議與評分！' : '';
         }
         
         // Adjust style based on tone
@@ -382,13 +471,210 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Populate Grammar
         resultGrammar.innerHTML = grammarText.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    }
+
+    // --- Conversation Simulator Functions ---
+    async function startConversationSimulation(type, tone) {
+        isConversing = true;
+        conversationHistory = [];
+        chatHistory.innerHTML = '<div class="chat-msg system">Initiating conversation... Connecting to AI.</div>';
+        micBtn.disabled = true;
+        micBtn.style.opacity = '0.5';
+        micBtn.style.cursor = 'not-allowed';
+        chatStatus.textContent = 'Initializing...';
         
-        // Populate Evaluation Box
-        if (inputLang === 'english') {
-            resultEvaluationBox.classList.remove('hidden');
-            resultEvaluation.innerHTML = evaluationText.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+
+        // Build System Instruction
+        let scenarioDesc = type;
+        if (type === 'bug-report') scenarioDesc = 'Bug Report / Failure Analysis meeting';
+        else if (type === 'vendor-negotiation') scenarioDesc = 'Vendor Negotiation / Component Specifications meeting';
+        else if (type === 'design-review') scenarioDesc = 'Design Review Meeting';
+        else if (type === 'cross-functional') scenarioDesc = 'Cross-functional Team Sync';
+        else if (type === 'apologize-design-error') scenarioDesc = 'Meeting to apologize for a design error';
+        else if (type === 'rf-matching') scenarioDesc = 'RF Impedance Matching and Smith Chart Review';
+        else if (type === 'rf-desense') scenarioDesc = 'RF Desense Issue Triage and EMI Debugging';
+        else if (type === 'rf-certification') scenarioDesc = '3GPP/Carrier Certification and Compliance Discussion';
+
+        systemInstructionText = `
+            You are a native English speaker roleplaying in a hardware engineering context.
+            Scenario: ${scenarioDesc}. 
+            The user is a Hardware Engineer trying to practice their English communication.
+            Your tone should be: ${tone}.
+            Instructions:
+            - Keep your responses concise, conversational, and natural (1-3 sentences max).
+            - Do not act like an AI assistant. Act exactly like the designated persona (e.g., vendor, PM, colleague).
+            - Always ask a follow-up question or make a statement that prompts the user to respond, keeping the conversation engaging.
+        `;
+
+        if (apiKey) {
+             // Real API Initialization
+             appendChatMsg('system', 'Connection established. AI is typing...');
+             
+             // Initial prompt from user side (hidden) to kick off the conversation
+             conversationHistory.push({
+                 role: 'user', 
+                 parts: [{text: "Hi, I am joining the meeting now. Please start the conversation according to our scenario."}]
+             });
+
+             try {
+                 const aiReply = await sendChatToGemini(apiKey);
+                 appendChatMsg('ai', aiReply);
+                 playTTS(aiReply);
+                 chatStatus.textContent = 'Ready for your input.';
+                 enableMicBtn();
+             } catch (err) {
+                 appendChatMsg('system', `API Error: ${err.message}`);
+                 chatStatus.textContent = 'Failed to start.';
+             }
+
         } else {
-            resultEvaluationBox.classList.add('hidden');
+            // Mock connection delay
+            setTimeout(() => {
+                appendChatMsg('system', 'Mock Connection established. Audio enabled.');
+                
+                let openingText = "Hello! I understand we need to discuss some technical details today. How can I help you?";
+                if (type === 'bug-report') {
+                    openingText = "Hi team, I saw the failure analysis report regarding the ACLR issue. Could you elaborate on what you found on the ground pad?";
+                } else if (type === 'vendor-negotiation') {
+                    openingText = "Hello, thanks for reaching out. Are you requesting the PA load-pull data for the new module?";
+                } else if (type === 'rf-matching') {
+                    openingText = "Hi, I'm reviewing the Smith Chart for the new antenna trace. What S11 target are we aiming for on band 77?";
+                } else if (type === 'rf-desense') {
+                    openingText = "Hi everyone. We're seeing some severe cellular desense when the memory bus is active. Does anyone have logs from the near-field probe?";
+                } else if (type === 'rf-certification') {
+                    openingText = "Hello team, I notice we failed the spurious emission test in the latest lab report. What's our mitigation plan?";
+                }
+                
+                setTimeout(() => {
+                    appendChatMsg('ai', openingText);
+                    playTTS(openingText);
+                    chatStatus.textContent = 'Ready for your input. (Mock Mode)';
+                    enableMicBtn();
+                }, 1000);
+            }, 1200);
         }
     }
+    
+    function enableMicBtn() {
+        if (!SpeechRecognition) {
+            chatStatus.textContent = 'Speech Recognition not supported in this browser. Please use Chrome/Edge.';
+            return;
+        }
+        micBtn.disabled = false;
+        micBtn.style.opacity = '1';
+        micBtn.style.cursor = 'pointer';
+    }
+
+    async function handleUserVoiceInput(transcript) {
+        appendChatMsg('user', transcript);
+        const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+        
+        if (apiKey) {
+            conversationHistory.push({ role: 'user', parts: [{text: transcript}] });
+            chatStatus.textContent = 'AI is thinking...';
+            micBtn.disabled = true;
+            try {
+                const aiReply = await sendChatToGemini(apiKey);
+                conversationHistory.push({ role: 'model', parts: [{text: aiReply}] });
+                appendChatMsg('ai', aiReply);
+                playTTS(aiReply);
+                chatStatus.textContent = 'Ready for your input.';
+            } catch (err) {
+                appendChatMsg('system', `API Error: ${err.message}`);
+                chatStatus.textContent = 'Error processing reply.';
+            }
+            micBtn.disabled = false;
+        } else {
+             // Mock processing
+             chatStatus.textContent = 'AI is thinking...';
+             micBtn.disabled = true;
+             setTimeout(() => {
+                 const aiReply = "I see. We will immediately check the SMT stencil on our production line to see if it's clogged. I'll get back to you with a report by EOD.";
+                 appendChatMsg('ai', aiReply);
+                 playTTS(aiReply);
+                 chatStatus.textContent = 'Ready for your input. (Mock Mode)';
+                 micBtn.disabled = false;
+             }, 2000);
+        }
+    }
+
+    async function sendChatToGemini(apiKey) {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+        const requestBody = {
+            systemInstruction: { parts: [{ text: systemInstructionText }] },
+            contents: conversationHistory,
+            generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 250 // Conversational length
+            }
+        };
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+        });
+
+        const data = await response.json();
+        if (data.error) throw new Error(data.error.message);
+        return data.candidates[0].content.parts[0].text;
+    }
+
+    function appendChatMsg(sender, text) {
+        const div = document.createElement('div');
+        div.className = `chat-msg ${sender}`;
+        div.textContent = text;
+        chatHistory.appendChild(div);
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
+    
+    function playTTS(text) {
+        // Reuse existing TTS logic briefly
+        const openAiKey = openAiKeyInput ? openAiKeyInput.value.trim() : '';
+        if (openAiKey) {
+             // Basic implementation of OpenAI TTS for conversation wrapper if needed
+             // Due to simplicity, we can fallback to native synth quickly for conversation
+             playLocalTTS(text);
+        } else {
+            playLocalTTS(text);
+        }
+    }
+
+    // Mic Button Interaction (Web Speech API)
+    micBtn.addEventListener('click', () => {
+        if (!isConversing || !SpeechRecognition) return;
+        
+        if (isRecording) {
+            // Stop recording
+            isRecording = false;
+            recognition.stop();
+            micBtn.classList.remove('active');
+            micBtnText.textContent = 'Push to Talk';
+            chatStatus.textContent = 'Processing your speech...';
+            
+            if (finalTranscript.trim() !== '') {
+                handleUserVoiceInput(finalTranscript.trim());
+            }
+            finalTranscript = '';
+        } else {
+            // Start recording
+            try {
+                finalTranscript = '';
+                recognition.start();
+                isRecording = true;
+                micBtn.classList.add('active');
+                micBtnText.textContent = 'Recording... (Click to stop)';
+                chatStatus.textContent = 'Listening...';
+            } catch (err) {
+                console.error(err);
+                if (err.name === 'NotAllowedError') {
+                    chatStatus.textContent = 'Microphone access denied.';
+                } else {
+                    chatStatus.textContent = 'Please clear previous speech first.';
+                }
+            }
+        }
+    });
+
 });

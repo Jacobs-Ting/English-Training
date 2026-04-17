@@ -31,8 +31,19 @@
             <section class="panel input-panel">
                 <div class="panel-header">
                     <h2>Scenario Input</h2>
-                    <span class="badge">Configuration</span>
+                    <span class="badge" id="mode-badge">Generator Mode</span>
                 </div>
+                
+                <div class="mode-switcher" style="padding: 1.5rem 1.5rem 0 1.5rem;">
+                    <div class="segment-control">
+                        <input type="radio" name="app-mode" id="mode-generator" value="generator" checked>
+                        <label for="mode-generator">Document Generator</label>
+                        
+                        <input type="radio" name="app-mode" id="mode-conversation" value="conversation">
+                        <label for="mode-conversation">Conversation Practice</label>
+                    </div>
+                </div>
+
                 <div class="panel-content">
                     <form id="scenario-form">
                         <div class="form-group">
@@ -41,20 +52,6 @@
                             
                             <label for="openai-key">OpenAI API Key (Optional for ultra-realistic voice)</label>
                             <input type="password" id="openai-key" placeholder="sk-..." style="width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.75rem 1rem; border-radius: var(--input-radius); font-size: 0.95rem; outline: none;">
-                        </div>
-
-                        <div class="form-group">
-                            <label>Input Language (輸入語言)</label>
-                            <div class="radio-group" id="input-language">
-                                <label class="radio-label">
-                                    <input type="radio" name="input-lang" value="chinese" checked>
-                                    <span class="radio-custom">Chinese (中文)</span>
-                                </label>
-                                <label class="radio-label">
-                                    <input type="radio" name="input-lang" value="english">
-                                    <span class="radio-custom">English (英文原稿)</span>
-                                </label>
-                            </div>
                         </div>
 
                         <div class="form-group">
@@ -67,12 +64,15 @@
                                     <option value="bug-report">Bug Report / Failure Analysis</option>
                                     <option value="cross-functional">Cross-functional Team Sync</option>
                                     <option value="email-update">Project Status Email Update</option>
-                                    <option value="apologize-design-error">Apologize for Design Error (為設計失誤致歉並說明)</option>
+                                    <option value="apologize-design-error">Apologize for Design Error (為設計失誤致歉)</option>
+                                    <option value="rf-matching">RF Impedance Matching (阻抗匹配/Smith Chart)</option>
+                                    <option value="rf-desense">RF Desense/EMI Debugging (靈敏度劣化分析)</option>
+                                    <option value="rf-certification">Carrier/3GPP Certification (電信商認證/法規討論)</option>
                                 </select>
                             </div>
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group" id="format-group">
                             <label for="comm-format">Communication Format (溝通形式)</label>
                             <div class="select-wrapper">
                                 <select id="comm-format" required>
@@ -86,7 +86,7 @@
                             </div>
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group" id="key-points-group">
                             <label for="key-points">Key Technical Points to Convey</label>
                             <textarea id="key-points" rows="4" placeholder="e.g., The PCB temperature exceeds the limit by 15°C under full load. Need to discuss adding a heatsink or optimizing thermal vias..." required></textarea>
                             <div class="word-count">0 / 500</div>
@@ -177,14 +177,26 @@
                     <div class="result-box">
                         <h3 class="result-title">Grammar Analysis (文法解析)</h3>
                         <div class="result-text" id="result-grammar">
+                            <!-- Grammar analysis goes here -->
                         </div>
                     </div>
+                </div>
 
-                    <div class="result-box hidden" id="result-evaluation-box">
-                        <h3 class="result-title">English Evaluation (英文評語)</h3>
-                        <div class="result-text" id="result-evaluation">
-                            <!-- Evaluation goes here -->
-                        </div>
+                <!-- Chat UI State -->
+                <div class="output-content hidden" id="output-chat" style="display: flex; flex-direction: column;">
+                    <div class="chat-history" id="chat-history">
+                        <div class="chat-msg system">Configure the scenario on the left and click "Start Conversation Simulator" to begin.</div>
+                    </div>
+                    <div class="chat-controls">
+                        <div class="chat-status" id="chat-status">Status: Waiting to start...</div>
+                        <button id="mic-btn" class="mic-btn" disabled style="opacity: 0.5; cursor: not-allowed;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2C10.3431 2 9 3.34315 9 5V11C9 12.6569 10.3431 14 12 14C13.6569 14 15 12.6569 15 11V5C15 3.34315 13.6569 2 12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M19 10V11C19 14.866 15.866 18 12 18C8.13401 18 5 14.866 5 11V10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M12 18V22M8 22H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span id="mic-btn-text">Push to Talk</span>
+                        </button>
                     </div>
                 </div>
             </section>
