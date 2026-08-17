@@ -4,6 +4,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const formatSelect = document.getElementById('comm-format');
     const keyPointsArea = document.getElementById('key-points');
     const apiKeyInput = document.getElementById('api-key');
+    const modelSelect = document.getElementById('gemini-model');
+    const customModelInput = document.getElementById('custom-model');
     const wordCount = document.querySelector('.word-count');
     const generateBtn = document.querySelector('.generate-btn');
     const copyBtn = document.getElementById('copy-btn');
@@ -12,6 +14,70 @@ document.addEventListener('DOMContentLoaded', () => {
     const formatGroup = document.getElementById('format-group');
     const keyPointsGroup = document.getElementById('key-points-group');
     let currentAudio = null;
+
+    function safeGetStorage(key) {
+        try { return localStorage.getItem(key); } catch (e) { return null; }
+    }
+    function safeSetStorage(key, value) {
+        try { localStorage.setItem(key, value); } catch (e) {}
+    }
+
+    function getSelectedModel() {
+        if (modelSelect && modelSelect.value === 'custom') {
+            const customVal = customModelInput ? customModelInput.value.trim() : '';
+            return customVal || 'gemini-3.5-flash';
+        }
+        return modelSelect ? modelSelect.value : 'gemini-3.5-flash';
+    }
+
+    // Restore saved settings from localStorage
+    if (apiKeyInput) {
+        const savedApiKey = safeGetStorage('hw_eng_gemini_key');
+        if (savedApiKey) apiKeyInput.value = savedApiKey;
+        apiKeyInput.addEventListener('input', () => {
+            safeSetStorage('hw_eng_gemini_key', apiKeyInput.value.trim());
+        });
+    }
+
+    if (openAiKeyInput) {
+        const savedOpenAiKey = safeGetStorage('hw_eng_openai_key');
+        if (savedOpenAiKey) openAiKeyInput.value = savedOpenAiKey;
+        openAiKeyInput.addEventListener('input', () => {
+            safeSetStorage('hw_eng_openai_key', openAiKeyInput.value.trim());
+        });
+    }
+
+    if (modelSelect) {
+        const savedModel = safeGetStorage('hw_eng_gemini_model');
+        if (savedModel) {
+            modelSelect.value = savedModel;
+            if (savedModel === 'custom' && customModelInput) {
+                customModelInput.classList.remove('hidden');
+                const savedCustom = safeGetStorage('hw_eng_custom_model');
+                if (savedCustom) customModelInput.value = savedCustom;
+            }
+        }
+
+        modelSelect.addEventListener('change', () => {
+            if (modelSelect.value === 'custom') {
+                if (customModelInput) {
+                    customModelInput.classList.remove('hidden');
+                    customModelInput.focus();
+                }
+            } else {
+                if (customModelInput) {
+                    customModelInput.classList.add('hidden');
+                }
+            }
+            safeSetStorage('hw_eng_gemini_model', modelSelect.value);
+        });
+    }
+
+    if (customModelInput) {
+        customModelInput.addEventListener('input', () => {
+            safeSetStorage('hw_eng_custom_model', customModelInput.value.trim());
+        });
+    }
     
     // TTS Synth
     const synth = window.speechSynthesis;
@@ -176,7 +242,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (apiKey) {
             // Real LLM API Call
             try {
-                const aiData = await generateEnglishEmail(keyPoints, tone, apiKey, format);
+                const selectedModel = getSelectedModel();
+                const aiData = await generateEnglishEmail(keyPoints, tone, apiKey, format, selectedModel);
                 if (aiData) {
                     resultSubject.textContent = aiData.subject;
                     resultMessage.innerHTML = aiData.body.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -219,9 +286,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    async function generateEnglishEmail(keyPoints, tone, apiKey, format) {
-        // Use gemini-2.5-flash for the latest model support
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    async function generateEnglishEmail(keyPoints, tone, apiKey, format, model = 'gemini-3.5-flash') {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
         
         const prompt = `
             You are a highly professional Hardware Engineer.
@@ -518,7 +584,8 @@ document.addEventListener('DOMContentLoaded', () => {
              });
 
              try {
-                 const aiReply = await sendChatToGemini(apiKey);
+                 const selectedModel = getSelectedModel();
+                 const aiReply = await sendChatToGemini(apiKey, selectedModel);
                  appendChatMsg('ai', aiReply);
                  playTTS(aiReply);
                  chatStatus.textContent = 'Ready for your input.';
@@ -575,7 +642,8 @@ document.addEventListener('DOMContentLoaded', () => {
             chatStatus.textContent = 'AI is thinking...';
             micBtn.disabled = true;
             try {
-                const aiReply = await sendChatToGemini(apiKey);
+                const selectedModel = getSelectedModel();
+                const aiReply = await sendChatToGemini(apiKey, selectedModel);
                 conversationHistory.push({ role: 'model', parts: [{text: aiReply}] });
                 appendChatMsg('ai', aiReply);
                 playTTS(aiReply);
@@ -599,8 +667,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function sendChatToGemini(apiKey) {
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    async function sendChatToGemini(apiKey, model = 'gemini-3.5-flash') {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
         const requestBody = {
             systemInstruction: { parts: [{ text: systemInstructionText }] },
             contents: conversationHistory,
